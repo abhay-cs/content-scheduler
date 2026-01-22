@@ -273,11 +273,6 @@ This project is open source and available under the [MIT License](LICENSE).
 - [Tailwind CSS](https://tailwindcss.com) for the utility-first CSS framework
 - [Lucide](https://lucide.dev) for the beautiful icons
 
-## 📞 Support
-
-If you have any questions or need help, please:
-- Open an issue on GitHub
-- Contact me via email: your.email@example.com
 
 ---
 
