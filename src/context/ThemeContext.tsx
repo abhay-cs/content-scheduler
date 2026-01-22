@@ -30,6 +30,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
     // You could also add/remove CSS classes to the document element here if needed
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [darkMode]);
 
   const toggleDarkMode = () => {
