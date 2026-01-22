@@ -262,9 +262,9 @@ This project is open source and available under the [MIT License](LICENSE).
 ## 👤 Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-- Portfolio: [Your Website](https://yourwebsite.com)
+- GitHub: [@abhay-cs](https://github.com/abhay-cs)
+- LinkedIn: [abhaycs](https://linkedin.com/in/abhaycs)
+- Portfolio: [portfolio](https://abhaycs.com)
 
 ## 🙏 Acknowledgments
 
@@ -281,4 +281,3 @@ If you have any questions or need help, please:
 
 ---
 
-**Made with ❤️ using Next.js and Supabase**
