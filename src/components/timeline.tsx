@@ -5,7 +5,7 @@ import "react-resizable/css/styles.css"
 import { useTheme } from "@/context/ThemeContext"
 import { cn } from "@/lib/utils"
 import { getSchedules, updateSchedule, deleteSchedule } from "@/app/(dashboard)/scheduler/actions"
-import { Trash2 } from "lucide-react"
+import { Trash2, Clock, List, GanttChart } from "lucide-react"
 
 export interface ScheduleItem {
 	id: string
@@ -14,6 +14,8 @@ export interface ScheduleItem {
 	start: number
 	end: number
 }
+
+type ViewMode = "list" | "timeline"
 
 interface TimelineProps {
 	onRefresh?: () => void
@@ -25,6 +27,7 @@ export function Timeline({ onRefresh, selectedDay }: TimelineProps) {
 	const [items, setItems] = useState<ScheduleItem[]>([])
 	const [loading, setLoading] = useState(true)
 	const [isMobile, setIsMobile] = useState(false)
+	const [viewMode, setViewMode] = useState<ViewMode>("list") // Default to list view on mobile
 	const [deleteModal, setDeleteModal] = useState<{ open: boolean; item: ScheduleItem | null }>({
 		open: false,
 		item: null,
@@ -42,6 +45,15 @@ export function Timeline({ onRefresh, selectedDay }: TimelineProps) {
 		window.addEventListener('resize', checkMobile)
 		return () => window.removeEventListener('resize', checkMobile)
 	}, [])
+
+	// Helper function to format time
+	const formatTime = (minutes: number) => {
+		const m = Math.max(0, Math.round(minutes))
+		const hour = 5 + Math.floor(m / 60)
+		const min = m % 60
+		const minStr = min < 10 ? `0${min}` : `${min}`
+		return `${hour}:${minStr} PM`
+	}
 
 	// Fetch items from Supabase
 	useEffect(() => {
@@ -122,28 +134,339 @@ export function Timeline({ onRefresh, selectedDay }: TimelineProps) {
 		)
 	}
 
+	// Mobile views with toggle
+	if (isMobile) {
+		const hourHeight = 60 // pixels per hour
+		const startHour = 5 // 5 PM
+		const endHour = 9 // 9 PM
+		const totalHours = endHour - startHour
+
+		const colorMapMobile: Record<string, { bg: string; border: string; text: string }> = {
+			primary: {
+				bg: darkMode ? "bg-blue-500/20" : "bg-blue-100",
+				border: "border-l-blue-500",
+				text: darkMode ? "text-blue-400" : "text-blue-600",
+			},
+			emerald: {
+				bg: darkMode ? "bg-emerald-500/20" : "bg-emerald-100",
+				border: "border-l-emerald-500",
+				text: darkMode ? "text-emerald-400" : "text-emerald-600",
+			},
+			amber: {
+				bg: darkMode ? "bg-amber-500/20" : "bg-amber-100",
+				border: "border-l-amber-500",
+				text: darkMode ? "text-amber-400" : "text-amber-600",
+			},
+		}
+
+		return (
+			<div className="space-y-3">
+				{/* View Toggle */}
+				<div className="flex justify-center">
+					<div className={cn(
+						"inline-flex rounded-lg p-1",
+						darkMode ? "bg-white/5" : "bg-gray-100"
+					)}>
+						<button
+							onClick={() => setViewMode("list")}
+							className={cn(
+								"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+								viewMode === "list"
+									? darkMode 
+										? "bg-white/10 text-white shadow-sm" 
+										: "bg-white text-gray-900 shadow-sm"
+									: darkMode
+										? "text-zinc-400 hover:text-zinc-300"
+										: "text-gray-500 hover:text-gray-700"
+							)}
+						>
+							<List className="w-4 h-4" />
+							<span>List</span>
+						</button>
+						<button
+							onClick={() => setViewMode("timeline")}
+							className={cn(
+								"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+								viewMode === "timeline"
+									? darkMode 
+										? "bg-white/10 text-white shadow-sm" 
+										: "bg-white text-gray-900 shadow-sm"
+									: darkMode
+										? "text-zinc-400 hover:text-zinc-300"
+										: "text-gray-500 hover:text-gray-700"
+							)}
+						>
+							<GanttChart className="w-4 h-4" />
+							<span>Timeline</span>
+						</button>
+					</div>
+				</div>
+
+				{/* List View (iOS Calendar style) */}
+				{viewMode === "list" && (
+					<div className={cn(
+						"relative border rounded-xl overflow-hidden",
+						darkMode 
+							? "bg-[#0a0a0a] border-white/10" 
+							: "bg-white border-gray-200"
+					)}>
+						{/* Vertical Timeline Container */}
+						<div className="relative" style={{ height: totalHours * hourHeight + 40 }}>
+							{/* Hour rows with labels */}
+							{Array.from({ length: totalHours + 1 }).map((_, i) => {
+								const hour = startHour + i
+								const hourLabel = hour === 12 ? "Noon" : hour > 12 ? `${hour - 12} PM` : `${hour} AM`
+								
+								return (
+									<div
+										key={i}
+										className="absolute left-0 right-0 flex items-start"
+										style={{ top: i * hourHeight + 20 }}
+									>
+										{/* Time label */}
+										<div className={cn(
+											"w-16 pr-3 text-right text-xs font-medium flex-shrink-0 -mt-2",
+											darkMode ? "text-zinc-500" : "text-gray-400"
+										)}>
+											{hourLabel}
+										</div>
+										{/* Hour line */}
+										<div className={cn(
+											"flex-1 border-t",
+											darkMode ? "border-white/10" : "border-gray-200"
+										)} />
+									</div>
+								)
+							})}
+
+							{/* Events */}
+							{items.map((item) => {
+								const startMinutes = Math.max(0, item.start)
+								const endMinutes = Math.min(totalMinutes, item.end)
+								const duration = endMinutes - startMinutes
+								
+								// Calculate position: convert minutes from 5PM to pixels
+								const topOffset = (startMinutes / 60) * hourHeight + 20
+								const height = Math.max(40, (duration / 60) * hourHeight - 4)
+								
+								const colors = colorMapMobile[item.color] || colorMapMobile.primary
+
+								return (
+									<div
+										key={item.id}
+										className={cn(
+											"absolute left-16 right-3 rounded-lg border-l-4 px-3 py-2",
+											"transition-all",
+											colors.bg,
+											colors.border
+										)}
+										style={{
+											top: topOffset,
+											height: height,
+											zIndex: 10,
+										}}
+									>
+										<div className="flex items-start justify-between h-full">
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p className={cn(
+													"font-semibold text-sm truncate",
+													darkMode ? "text-white" : "text-gray-900"
+												)}>
+													{item.title}
+												</p>
+												<div className={cn(
+													"flex items-center gap-1 mt-0.5",
+													colors.text
+												)}>
+													<Clock className="w-3 h-3" />
+													<span className="text-xs">
+														{formatTime(item.start)} – {formatTime(item.end)}
+													</span>
+												</div>
+											</div>
+											<button
+												onClick={(e) => {
+													e.stopPropagation()
+													setDeleteModal({ open: true, item })
+												}}
+												className={cn(
+													"p-1.5 rounded-full flex-shrink-0 -mr-1 -mt-0.5",
+													"transition-colors",
+													darkMode
+														? "hover:bg-white/10 active:bg-white/20 text-zinc-400"
+														: "hover:bg-black/5 active:bg-black/10 text-gray-400"
+												)}
+												aria-label="Delete schedule"
+											>
+												<Trash2 className="w-4 h-4" />
+											</button>
+										</div>
+									</div>
+								)
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* Timeline View (Horizontal) */}
+				{viewMode === "timeline" && (
+					<>
+						<p className={cn(
+							"text-xs text-center",
+							darkMode ? "text-zinc-500" : "text-gray-500"
+						)}>
+							← Swipe to see full timeline →
+						</p>
+						<div className={cn(
+							"relative border rounded-xl",
+							"overflow-x-auto overflow-y-visible",
+							"scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent",
+							"scroll-smooth",
+							"-webkit-overflow-scrolling: touch",
+							darkMode 
+								? "bg-[#1a1a1a]/80 border-white/10" 
+								: "bg-white border-gray-200"
+						)}>
+							{/* Time Header */}
+							<div className={cn(
+								"flex border-b sticky top-0 z-20 bg-inherit",
+								darkMode ? "border-white/10" : "border-gray-200"
+							)}>
+								{Array.from({ length: totalMinutes / 30 }).map((_, i) => (
+									<div
+										key={i}
+										className={cn(
+											"w-[90px] flex-shrink-0 text-xs font-medium text-center py-2 border-r",
+											darkMode 
+												? "text-zinc-400 border-white/10" 
+												: "text-gray-500 border-gray-200"
+										)}
+									>
+										{5 + Math.floor((i * 30) / 60)}:{(i * 30) % 60 === 0 ? "00" : "30"}
+									</div>
+								))}
+							</div>
+
+							{/* Timeline Body */}
+							{(() => {
+								const trackHeight = 72
+								const containerHeight = Math.max(160, items.length * trackHeight + 16)
+
+								return (
+									<div className="relative min-w-full" style={{ height: containerHeight, width: totalMinutes * minuteWidth }}>
+										{/* Grid overlay */}
+										<div className="absolute inset-0 pointer-events-none z-0">
+											{Array.from({ length: totalMinutes / 30 }).map((_, i) => (
+												<div
+													key={`v-${i}`}
+													style={{
+														position: "absolute",
+														left: i * 30 * minuteWidth,
+														top: 0,
+														height: containerHeight,
+														width: 1,
+													}}
+													className={cn(
+														darkMode ? "bg-white/10" : "bg-gray-200"
+													)}
+												/>
+											))}
+
+											{Array.from({ length: Math.max(1, Math.ceil(containerHeight / trackHeight)) }).map((_, i) => (
+												<div
+													key={`h-${i}`}
+													style={{
+														position: "absolute",
+														left: 0,
+														right: 0,
+														top: i * trackHeight,
+														height: 1,
+													}}
+													className={cn(
+														darkMode ? "bg-white/10" : "bg-gray-200"
+													)}
+												/>
+											))}
+										</div>
+
+										{items.map((item, index) => (
+											<MobileTimelineBlock
+												key={item.id}
+												item={item}
+												minuteWidth={minuteWidth}
+												totalMinutes={totalMinutes}
+												trackIndex={index}
+												trackHeight={trackHeight}
+												darkMode={darkMode}
+												formatTime={formatTime}
+												onDelete={() => setDeleteModal({ open: true, item })}
+												onResize={async (newStart, newEnd) => {
+													// Update local state optimistically
+													setItems((prev) =>
+														prev.map((i) =>
+															i.id === item.id ? { ...i, start: newStart, end: newEnd } : i
+														)
+													)
+													// Sync back to Supabase
+													try {
+														await updateSchedule({
+															id: item.id,
+															start_time: newStart,
+															end_time: newEnd,
+														})
+													} catch (error) {
+														console.error("Failed to update schedule:", error)
+														// Revert on error
+														setItems((prev) =>
+															prev.map((i) =>
+																i.id === item.id ? { ...i, start: item.start, end: item.end } : i
+															)
+														)
+													}
+												}}
+											/>
+										))}
+									</div>
+								)
+							})()}
+						</div>
+					</>
+				)}
+
+				{/* Delete Confirmation Modal */}
+				{deleteModal.open && deleteModal.item && (
+					<DeleteConfirmModal
+						item={deleteModal.item}
+						darkMode={darkMode}
+						onConfirm={async () => {
+							try {
+								await deleteSchedule(deleteModal.item!.id)
+								setItems((prev) => prev.filter((i) => i.id !== deleteModal.item!.id))
+								setDeleteModal({ open: false, item: null })
+							} catch (error: any) {
+								alert(error.message || "Failed to delete schedule")
+							}
+						}}
+						onCancel={() => setDeleteModal({ open: false, item: null })}
+					/>
+				)}
+			</div>
+		)
+	}
+
+	// Desktop: Original horizontal timeline
 	return (
 		<div className="space-y-2">
-			{/* Mobile hint */}
-			{isMobile && items.length > 0 && (
-				<p className={cn(
-					"text-xs text-center",
-					darkMode ? "text-zinc-500" : "text-gray-500"
-				)}>
-					← Swipe to see full timeline →
-				</p>
-			)}
 			<div className={cn(
 				"relative border rounded-xl",
 				"overflow-x-auto overflow-y-visible",
 				"scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent",
-				// Smooth scrolling on mobile
 				"scroll-smooth",
 				darkMode 
 					? "bg-[#1a1a1a]/80 border-white/10" 
 					: "bg-white border-gray-200"
 			)}>
-			{/* Time Header - Sticky on mobile for better UX */}
+			{/* Time Header */}
 			<div className={cn(
 				"flex border-b sticky top-0 z-20 bg-inherit",
 				darkMode ? "border-white/10" : "border-gray-200"
@@ -152,25 +475,17 @@ export function Timeline({ onRefresh, selectedDay }: TimelineProps) {
 					<div
 						key={i}
 						className={cn(
-							// Responsive width: smaller on mobile
-							"w-[90px] sm:w-[120px] flex-shrink-0 text-xs font-medium text-center py-2 border-r",
+							"w-[120px] flex-shrink-0 text-xs font-medium text-center py-2 border-r",
 							darkMode 
 								? "text-zinc-400 border-white/10" 
 								: "text-gray-500 border-gray-200"
 						)}
 					>
-						{/* Shorter format on mobile */}
-						<span className="sm:hidden">
-							{5 + Math.floor((i * 30) / 60)}:{(i * 30) % 60 === 0 ? "00" : "30"}
-						</span>
-						<span className="hidden sm:inline">
-							{5 + Math.floor((i * 30) / 60)}:{(i * 30) % 60 === 0 ? "00" : "30"} PM
-						</span>
+						{5 + Math.floor((i * 30) / 60)}:{(i * 30) % 60 === 0 ? "00" : "30"} PM
 					</div>
 				))}
 			</div>
 
-			{/* Timeline Body */}
 			{/* Timeline Body - dynamic height based on number of tracks */}
 			{(() => {
 				const trackHeight = 72 // block height (60) + vertical gap (12)
@@ -468,6 +783,126 @@ function TimelineBlock({
 					title="Delete schedule"
 				>
 					<Trash2 className={cn("h-4 w-4", isMobile && "h-5 w-5")} />
+				</button>
+			</div>
+		</ResizableBox>
+	)
+}
+
+// Resizable timeline block for mobile
+function MobileTimelineBlock({
+	item,
+	minuteWidth,
+	totalMinutes,
+	trackIndex,
+	trackHeight,
+	darkMode,
+	formatTime,
+	onDelete,
+	onResize,
+}: {
+	item: ScheduleItem
+	minuteWidth: number
+	totalMinutes: number
+	trackIndex: number
+	trackHeight: number
+	darkMode: boolean
+	formatTime: (minutes: number) => string
+	onDelete: () => void
+	onResize: (newStart: number, newEnd: number) => void
+}) {
+	const minDuration = 5
+	const safeStart = Number(item.start) || 0
+	const safeEnd = Number(item.end) || safeStart + 45
+
+	const [leftPos, setLeftPos] = useState(safeStart * minuteWidth)
+	const [width, setWidth] = useState((safeEnd - safeStart) * minuteWidth)
+	const [currentStart, setCurrentStart] = useState(safeStart)
+	const [currentEnd, setCurrentEnd] = useState(safeEnd)
+
+	const colorMap: Record<string, string> = {
+		primary: darkMode 
+			? "border-blue-500 bg-blue-500/20 text-blue-400" 
+			: "border-blue-500 bg-blue-500/20 text-blue-600",
+		emerald: darkMode
+			? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
+			: "border-emerald-500 bg-emerald-500/20 text-emerald-600",
+		amber: darkMode
+			? "border-amber-500 bg-amber-500/20 text-amber-400"
+			: "border-amber-500 bg-amber-500/20 text-amber-600",
+	}
+
+	useEffect(() => {
+		const newStart = leftPos / minuteWidth
+		const newEnd = newStart + width / minuteWidth
+		setCurrentStart(newStart)
+		setCurrentEnd(newEnd)
+	}, [leftPos, width, minuteWidth])
+
+	return (
+		<ResizableBox
+			className={cn(
+				"p-2 text-xs rounded-lg border-l-4 transition-all group",
+				"cursor-ew-resize touch-none",
+				colorMap[item.color] || colorMap.primary
+			)}
+			width={width}
+			height={64}
+			axis="x"
+			resizeHandles={["e", "w"]}
+			minConstraints={[minDuration * minuteWidth, 40]}
+			style={{
+				left: leftPos,
+				top: trackIndex * trackHeight + 8,
+				position: "absolute",
+				zIndex: 10,
+				minWidth: `${minDuration * minuteWidth}px`,
+			}}
+			onResize={(e, data) => {
+				if (data.handle === "e") {
+					setWidth(data.size.width)
+				} else if (data.handle === "w") {
+					const deltaWidth = width - data.size.width
+					setLeftPos(leftPos + deltaWidth)
+					setWidth(data.size.width)
+				}
+			}}
+			onResizeStop={() => {
+				const newStart = Math.round(leftPos / minuteWidth)
+				const newEnd = Math.round(newStart + width / minuteWidth)
+				onResize(Math.max(0, newStart), Math.min(totalMinutes, newEnd))
+			}}
+		>
+			<div className="flex items-start justify-between gap-1 h-full">
+				<div className="flex-1 min-w-0 overflow-hidden">
+					<p className={cn(
+						"font-semibold text-xs truncate",
+						darkMode ? "text-white" : "text-gray-900"
+					)}>
+						{item.title}
+					</p>
+					<p className={cn(
+						"opacity-70 text-[10px] mt-0.5",
+						darkMode ? "text-zinc-400" : "text-gray-600"
+					)}>
+						{formatTime(currentStart)} → {formatTime(currentEnd)}
+					</p>
+				</div>
+				<button
+					onClick={(e) => {
+						e.stopPropagation()
+						onDelete()
+					}}
+					className={cn(
+						"p-1 rounded flex-shrink-0",
+						"transition-colors",
+						darkMode
+							? "hover:bg-red-500/20 text-red-400 active:bg-red-500/30"
+							: "hover:bg-red-50 text-red-600 active:bg-red-100"
+					)}
+					aria-label="Delete schedule"
+				>
+					<Trash2 className="h-3.5 w-3.5" />
 				</button>
 			</div>
 		</ResizableBox>
