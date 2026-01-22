@@ -16,6 +16,9 @@ export async function getContent() {
 		views: item.views ?? 0,
 		engagement: item.engagement !== null ? `${item.engagement}%` : "0%",
 		thumbnail: item.media_url ?? "/vercel.svg",
+		media_url: item.media_url,
+		description: item.description,
+		scheduled_at: item.scheduled_at,
 	}))
 }
 
@@ -25,7 +28,7 @@ export async function addContent({
 	type,
 	media_url,
 	status,
-	scheduled_at, // use the correct column name
+	scheduled_at,
 }: {
 	title: string
 	description?: string
@@ -38,7 +41,7 @@ export async function addContent({
 		{
 			title,
 			description,
-			type,
+			type: type.toLowerCase(),
 			media_url,
 			status,
 			scheduled_at: scheduled_at ? new Date(scheduled_at).toISOString() : null,
@@ -49,6 +52,40 @@ export async function addContent({
 	return data?.[0]
 }
 
+export async function updateContent(
+	id: string,
+	{
+		title,
+		description,
+		type,
+		media_url,
+		status,
+		scheduled_at,
+	}: {
+		title: string
+		description?: string
+		type: string
+		media_url?: string
+		status: string
+		scheduled_at?: string | null
+	}
+) {
+	const { data, error } = await supabase
+		.from("content")
+		.update({
+			title,
+			description,
+			type: type.toLowerCase(),
+			media_url,
+			status,
+			scheduled_at: scheduled_at ? new Date(scheduled_at).toISOString() : null,
+		})
+		.eq("id", id)
+		.select("*")
+
+	if (error) throw new Error(error.message)
+	return data?.[0]
+}
 
 export async function deleteContent(contentId: string) {
 	const { error } = await supabase.from('content').delete().eq("id", contentId);

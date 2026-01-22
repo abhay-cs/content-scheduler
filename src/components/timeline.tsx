@@ -60,15 +60,10 @@ export function Timeline({ onRefresh, selectedDay }: TimelineProps) {
 		const fetchItems = async () => {
 			try {
 				const data = await getSchedules()
-				// Debug: log to see what we're getting
-				if (data.length > 0) {
-					console.log("All schedules:", data.map((i: any) => ({ id: i.id, day: i.day, title: i.content?.title })))
-				}
 				// Filter by selected day
 				const filteredData = selectedDay 
 					? data.filter((i: any) => i.day?.toLowerCase() === selectedDay.toLowerCase()) 
 					: data
-				console.log(`Filtered for ${selectedDay}:`, filteredData.length, "items")
 				setItems(
 					filteredData.map((i: any) => {
 						// Convert time strings to minutes (from 5 PM)

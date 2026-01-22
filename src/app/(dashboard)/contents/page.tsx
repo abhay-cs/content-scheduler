@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageTitle } from "@/components/PageTitle";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/Button";
-import { getContent, addContent, deleteContent } from "./actions"
+import { getContent, addContent, updateContent, deleteContent } from "./actions"
 
 // get stats card
 export function computeContentCards(contentItems: any[]) {
@@ -96,36 +96,65 @@ export default function Contents() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const refreshContent = async () => {
+        const data = await getContent()
+        setContent(data)
+        setStat(computeContentCards(data))
+    }
+
     const handleSave = async () => {
         try {
-            await handleAdd(formData);
+            if (selectedContent) {
+                // Update existing content
+                await updateContent(selectedContent.id, formData);
+            } else {
+                // Add new content
+                await addContent(formData);
+            }
+            await refreshContent();
             closeModal();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to save content");
+        } catch (err: any) {
+            alert(err.message || "Failed to save content");
         }
     };
 
-    const handleEdit = (item: any) => {
-        setSelectedContent(item)
-        setFormData({
-            title: item.title,
-            type: item.type,
-            status: item.status,
-            media_url: item.media_url || '',
-            scheduled_at: item.scheduled_at ? item.scheduled_at.slice(0, 16) : '',
-            description: item.description || '',
-        });
-        setIsModalOpen(true);
-    }
-    const openModal = (content = null) => {
-        setSelectedContent(content);
+    const openModal = (item: any = null) => {
+        setSelectedContent(item);
+        if (item) {
+            // Edit mode - populate form with item data
+            setFormData({
+                title: item.title || '',
+                type: item.type || 'Video',
+                status: item.status || 'draft',
+                media_url: item.media_url || '',
+                scheduled_at: item.scheduled_at ? item.scheduled_at.slice(0, 16) : '',
+                description: item.description || '',
+            });
+        } else {
+            // Add mode - reset form
+            setFormData({
+                title: '',
+                type: 'Video',
+                status: 'draft',
+                media_url: '',
+                scheduled_at: '',
+                description: '',
+            });
+        }
         setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
         setSelectedContent(null);
+        setFormData({
+            title: '',
+            type: 'Video',
+            status: 'draft',
+            media_url: '',
+            scheduled_at: '',
+            description: '',
+        });
     };
 
     type StatusBadgeProps = {
@@ -165,29 +194,10 @@ export default function Contents() {
         );
     };
 
-    const handleAdd = async (newContent:
-        {
-            title: string,
-            type: string,
-            status: string,
-            scheduledTime?: string,
-            description?: string,
-            media_url?: string
-        }
-    ) => {
-
-        try {
-            await addContent(newContent)
-            setContent(oldItems => [...oldItems, newContent])
-        } catch (err: any) {
-            alert(err.message)
-        }
-    }
-
     const handleDelete = async (id: string) => {
         try {
             await deleteContent(id)
-            setContent(oldItems => oldItems.filter(item => item.id !== id))
+            await refreshContent()
         } catch (err: any) {
             alert(err.message)
         }

@@ -25,13 +25,6 @@ export default function Dashboard() {
 				const analytics = await getAnalytics()
 				const schedules = await getSchedules()
 
-				console.log("Dashboard data loaded:", { 
-					analytics, 
-					schedulesCount: schedules.length,
-					totalSchedules: analytics.totalSchedules,
-					totalContent: analytics.totalContent
-				})
-
 				// Always show stats, even if data is minimal
 				const typeCounts: Record<string, number> = {}
 				schedules.forEach((s: any) => {
