@@ -79,7 +79,11 @@ export default function Scheduler() {
                     <PageTitle
                         description="Schedule your content for publication"
                         action={
-                            <Button onClick={() => setIsModalOpen(true)} size="sm">
+                            <Button 
+                                onClick={() => setIsModalOpen(true)} 
+                                size="sm"
+                                className="hidden sm:inline-flex"
+                            >
                                 <Plus className="h-5 w-5" />
                                 Add Schedule
                             </Button>
@@ -87,26 +91,52 @@ export default function Scheduler() {
                     >
                         Schedule Your Content
                     </PageTitle>
-                    <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+                    
+                    {/* Mobile Floating Action Button */}
+                    <div className="fixed bottom-6 right-6 sm:hidden z-30">
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className={cn(
+                                "h-14 w-14 rounded-full shadow-2xl flex items-center justify-center",
+                                "bg-gradient-to-r from-blue-500 to-blue-600 text-white",
+                                "hover:opacity-90 active:scale-95 transition-all duration-200",
+                                "shadow-lg shadow-blue-500/50 touch-manipulation"
+                            )}
+                            aria-label="Add Schedule"
+                        >
+                            <Plus className="h-6 w-6" />
+                        </button>
+                    </div>
+                    
+                    {/* Sticky Day Selector - Stays visible on mobile when scrolling */}
+                    <div className={cn(
+                        "sticky top-0 z-20 mb-4 flex gap-2 overflow-x-auto pb-2 -mx-4 sm:-mx-8 px-4 sm:px-8 pt-2",
+                        "backdrop-blur-sm",
+                        darkMode 
+                            ? "bg-[#0a0a0a]/95 border-b border-white/10" 
+                            : "bg-white/95 border-b border-gray-200"
+                    )}>
                         {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => (
                             <button
                                 key={day}
                                 onClick={() => setSelectedDay(day)}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors",
+                                    "px-3 sm:px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors flex-shrink-0",
                                     selectedDay === day
                                         ? darkMode
-                                            ? "bg-blue-500 text-white"
-                                            : "bg-blue-600 text-white"
+                                            ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+                                            : "bg-blue-600 text-white shadow-lg shadow-blue-600/30"
                                         : darkMode
                                             ? "bg-[#1a1a1a] text-zinc-300 hover:bg-[#222222]"
                                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                 )}
                             >
-                                {day.charAt(0).toUpperCase() + day.slice(1)}
+                                <span className="hidden sm:inline">{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+                                <span className="sm:hidden">{day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}</span>
                             </button>
                         ))}
                     </div>
+                    
                     <Timeline key={refreshKey} selectedDay={selectedDay} />
                 </div>
             </main>

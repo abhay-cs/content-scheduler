@@ -25,7 +25,14 @@ export default function Dashboard() {
 				const analytics = await getAnalytics()
 				const schedules = await getSchedules()
 
-				// Get most scheduled content type
+				console.log("Dashboard data loaded:", { 
+					analytics, 
+					schedulesCount: schedules.length,
+					totalSchedules: analytics.totalSchedules,
+					totalContent: analytics.totalContent
+				})
+
+				// Always show stats, even if data is minimal
 				const typeCounts: Record<string, number> = {}
 				schedules.forEach((s: any) => {
 					const type = s.content?.type || "unknown"
@@ -58,9 +65,10 @@ export default function Dashboard() {
 							return days.slice(todayIndex + 1).includes(s.day)
 						})
 
-				// Calculate average engagement (mock calculation based on coverage)
-				const avgCoverage = analytics.coverageByDay.reduce((sum: number, day: any) => sum + day.percentage, 0) / 7
-				const mockEngagement = Math.round(60 + (avgCoverage * 0.3)) // 60-90% range
+				// Calculate average coverage
+				const avgCoverage = analytics.coverageByDay.length > 0
+					? analytics.coverageByDay.reduce((sum: number, day: any) => sum + day.percentage, 0) / 7
+					: 0
 
 				// Format next schedule time
 				let nextScheduleText = "No upcoming schedules"
@@ -73,30 +81,33 @@ export default function Dashboard() {
 					nextScheduleText = `${nextSchedule.content?.title || "Content"} at ${displayHour}:${mins} ${ampm}`
 				}
 
+				// Always set stats - show 0 if no data
 				setStats([
 					{
 						id: 1,
 						title: "Total Schedules",
 						value: analytics.totalSchedules.toString(),
 						icon: <Megaphone className="h-6 w-6" />,
-						change: `${topTypeCount} ${topType}s this week`,
-						changeClass: "text-emerald-500",
+						change: schedules.length > 0 ? `${topTypeCount} ${topType}s this week` : "No schedules yet",
+						changeClass: schedules.length > 0 ? "text-emerald-500" : "text-zinc-400",
 					},
 					{
 						id: 2,
 						title: "Most Scheduled",
 						value: topContent.length > 20 ? topContent.substring(0, 20) + "..." : topContent,
 						icon: <ChartBarIcon className="h-6 w-6" />,
-						change: `${contentCounts[topContent]?.count || 0} times scheduled`,
-						changeClass: "text-emerald-500",
+						change: schedules.length > 0 ? `${contentCounts[topContent]?.count || 0} times scheduled` : "Add schedules to see",
+						changeClass: schedules.length > 0 ? "text-emerald-500" : "text-zinc-400",
 					},
 					{
 						id: 3,
 						title: "Avg. Coverage",
 						value: `${Math.round(avgCoverage)}%`,
 						icon: <User className="h-6 w-6" />,
-						change: `${analytics.coverageByDay.filter((d: any) => d.percentage > 50).length} days >50%`,
-						changeClass: avgCoverage > 60 ? "text-emerald-500" : "text-amber-500",
+						change: schedules.length > 0 
+							? `${analytics.coverageByDay.filter((d: any) => d.percentage > 50).length} days >50%`
+							: "Schedule content to increase",
+						changeClass: avgCoverage > 60 ? "text-emerald-500" : avgCoverage > 0 ? "text-amber-500" : "text-zinc-400",
 					},
 					{
 						id: 4,
@@ -109,8 +120,41 @@ export default function Dashboard() {
 				])
 			} catch (error) {
 				console.error("Failed to load dashboard data:", error)
-				// Fallback to empty stats
-				setStats([])
+				// Show error state but still display stats with 0 values
+				setStats([
+					{
+						id: 1,
+						title: "Total Schedules",
+						value: "0",
+						icon: <Megaphone className="h-6 w-6" />,
+						change: "Error loading data",
+						changeClass: "text-red-500",
+					},
+					{
+						id: 2,
+						title: "Most Scheduled",
+						value: "N/A",
+						icon: <ChartBarIcon className="h-6 w-6" />,
+						change: "Check console for errors",
+						changeClass: "text-red-500",
+					},
+					{
+						id: 3,
+						title: "Avg. Coverage",
+						value: "0%",
+						icon: <User className="h-6 w-6" />,
+						change: "Unable to load",
+						changeClass: "text-red-500",
+					},
+					{
+						id: 4,
+						title: "Next Schedule",
+						value: "N/A",
+						icon: <Calendar className="h-6 w-6" />,
+						change: "No data available",
+						changeClass: "text-zinc-400",
+					},
+				])
 			} finally {
 				setLoading(false)
 			}
@@ -144,20 +188,17 @@ export default function Dashboard() {
 							: "bg-gray-50 border-gray-200"
 					)}>
 						<p className={cn(
-							"mb-4",
+							"mb-2",
 							darkMode ? "text-zinc-400" : "text-gray-500"
 						)}>
-							No data available. Seed the database to see dashboard stats.
+							No data available yet.
 						</p>
-						<a
-							href="/seed"
-							className={cn(
-								"text-sm font-medium underline",
-								darkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"
-							)}
-						>
-							Go to Seed Page
-						</a>
+						<p className={cn(
+							"text-sm",
+							darkMode ? "text-zinc-500" : "text-gray-400"
+						)}>
+							Add content and schedules to see dashboard statistics.
+						</p>
 					</div>
 				) : (
 					<>
